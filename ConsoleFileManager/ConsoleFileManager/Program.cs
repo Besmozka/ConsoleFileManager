@@ -4,76 +4,41 @@ using System.IO;
 
 namespace ConsoleFileManager
 {
-    class Program : ClearWindow
+    class Program
     {
-        enum Commands
-        {
-            copyFile,
-            copyFolder,
-            deleteFile,
-            deleteFolder,
-        }
         static void Main(string[] args)
         {
-            var infoWindowHeight = 5;
-            var commandLineHeight = 2;
+            List<string> userCommand;
+            var startDirectory = "C:\\";
 
-            string startDirectory = "C:\\New" ;
             Settings();
-            DrawWindows(infoWindowHeight,commandLineHeight);
-            WriteFolderContents(startDirectory);
-            WriteFolderInfo(startDirectory);
-            SetCommandLine(commandLineHeight, startDirectory);
-            var userCommand = ParseString(Console.ReadLine());
-            startDirectory = userCommand[1];
-            ClearFoldersWindow(1, Console.WindowHeight - 9);
-            ClearFoldersWindow(Console.WindowHeight - 10, Console.WindowHeight - 15);
-            WriteFolderContents(startDirectory);
-            WriteFolderInfo(startDirectory);
-            Console.ReadLine();
-        }
-
-        static void WriteFolderInfo(string path)
-        {
-            var directories = Directory.GetDirectories(path);
-            var files = Directory.GetFiles(path);
-            Console.SetCursorPosition(1, Console.WindowHeight - 8);
-            Console.Write(@"Info:");
-            Console.SetCursorPosition(1, Console.WindowHeight - 7);
-            Console.Write($"Creation: {Directory.GetCreationTime(path)}");
-            Console.SetCursorPosition(1, Console.WindowHeight - 6);
-            Console.Write($"Last Access: {Directory.GetLastAccessTime(path)}");
-            Console.SetCursorPosition(1, Console.WindowHeight - 5);
-            Console.Write($"Last Write: {Directory.GetLastWriteTime(path)}");
-            Console.SetCursorPosition(1, Console.WindowHeight - 4);
-            Console.Write($"Contents: {directories.Length} Folders and {files.Length} Files");
-            SetCommandLine(2, path);
-        }
-
-        static void WriteFolderContents(string path)
-        {
-            Console.SetCursorPosition(1, 1);
-            Console.Write($"{path} :");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            string[] subDirectories = Directory.GetDirectories(path);
-            string[] subFiles = Directory.GetFiles(path);
-            for (int i = 0; i < subDirectories.Length; i++)
-            {
-                Console.SetCursorPosition(1, Console.CursorTop + 1);
-                Console.Write(subDirectories[i].Substring(path.Length + 1));
-                Console.SetCursorPosition(Console.WindowWidth - 10, Console.CursorTop);
-                Console.Write("Folder");
+            DrawWindows();
+            while (true)
+            {   
+                FolderContents(startDirectory);
+                FolderInfo(startDirectory);
+                SetCommandLine(2, startDirectory);
+                userCommand = ParseString(Console.ReadLine());
+                switch (userCommand[0])
+                {
+                    case "copy":
+                        break;
+                    case "del":
+                        break;
+                    case "cd":
+                        FolderContents(userCommand[1]);
+                        FolderInfo(userCommand[1]);
+                        SetCommandLine(2, userCommand[1]);
+                        break;
+                    case "exit":
+                        break;
+                }
+                if (userCommand[0] == "exit")
+                {
+                    break;
+                }
+                startDirectory = userCommand[1];
             }
-            Console.ForegroundColor = ConsoleColor.Green;
-            for (int i = 0; i < subFiles.Length; i++)
-            {
-                Console.SetCursorPosition(1, Console.CursorTop + 1);
-                Console.Write(subFiles[i].Substring(path.Length + 1));
-                Console.SetCursorPosition(Console.WindowWidth - 10, Console.CursorTop);
-                Console.Write("File");
-            }
-            Console.ForegroundColor = ConsoleColor.White;
-            SetCommandLine(2, path);
         }
 
         static void Settings()
@@ -86,7 +51,7 @@ namespace ConsoleFileManager
             int commandLineHeight = 2;
         }
 
-        static void DrawWindows(int infoWindowHeight, int commandLineHeight)
+        static void DrawWindows()
         {
             char topRight = '\u2555'; // ╕
             char topLeft = '\u2552'; // ╒           
@@ -100,8 +65,11 @@ namespace ConsoleFileManager
             char middleSingleRight = '\u2524'; // ┤
             char middleSingleLeft = '\u251C'; // ├
 
+            var infoWindowHeight = 5;
+            var commandLineHeight = 2;
 
-            Console.SetCursorPosition(0, 0);            
+
+            Console.SetCursorPosition(0, 0);
             for (int i = 0; i < Console.WindowHeight; i++)
             {
                 Console.SetCursorPosition(Console.WindowWidth - 1, i);
@@ -114,7 +82,10 @@ namespace ConsoleFileManager
                     {
                         Console.Write(horizontalDoubleLine);
                     }
+                    Console.SetCursorPosition(2, Console.CursorTop);
+                    Console.Write("Contents");
                 }
+
                 if ((Console.WindowHeight - Console.CursorTop - 1) == (infoWindowHeight + commandLineHeight))
                 {
                     Console.SetCursorPosition(0, Console.CursorTop);
@@ -124,6 +95,8 @@ namespace ConsoleFileManager
                         Console.Write(horizontalDoubleLine);
                     }
                     Console.Write(middleDoubleRight);
+                    Console.SetCursorPosition(2, Console.CursorTop);
+                    Console.Write("Info");
                 }
                 if ((Console.WindowHeight - Console.CursorTop - 1) == commandLineHeight)
                 {
@@ -134,6 +107,8 @@ namespace ConsoleFileManager
                         Console.Write(horizontalSingleLine);
                     }
                     Console.Write(middleSingleRight);
+                    Console.SetCursorPosition(2, Console.CursorTop);
+                    Console.Write("Command line");
                 }
                 if (Console.CursorTop == Console.WindowHeight - 1)
                 {
@@ -152,12 +127,62 @@ namespace ConsoleFileManager
             Console.SetCursorPosition(Console.WindowWidth - 1, Console.WindowHeight - 1);
             Console.Write(downRight);
             return;
-        }  
+        }
+
+        static void FolderInfo(string path)
+        {
+            var directories = Directory.GetDirectories(path);
+            var files = Directory.GetFiles(path);
+
+            Console.SetCursorPosition(1, Console.WindowHeight - 7);
+            Console.Write($"Creation: {Directory.GetCreationTime(path)}".PadRight(Console.WindowWidth - 1));
+            Console.SetCursorPosition(1, Console.WindowHeight - 6);
+            Console.Write($"Last Access: {Directory.GetLastAccessTime(path)}".PadRight(Console.WindowWidth - 1));
+            Console.SetCursorPosition(1, Console.WindowHeight - 5);
+            Console.Write($"Last Write: {Directory.GetLastWriteTime(path)}".PadRight(Console.WindowWidth - 1));
+            Console.SetCursorPosition(1, Console.WindowHeight - 4);
+            Console.Write($"Contents: {directories.Length} Folders and {files.Length} Files".PadRight(Console.WindowWidth - 1));
+            SetCommandLine(2, path);
+        }
+
+        static void FolderContents(string path)
+        {            
+            Console.SetCursorPosition(1, 1);
+            Console.Write(path.ToUpper().PadRight(Console.WindowWidth - 1));
+            string[] subDirectories = Directory.GetDirectories(path);
+            string[] subFiles = Directory.GetFiles(path);
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            for (int i = 0; i < subDirectories.Length; i++)
+            {
+                Console.SetCursorPosition(1, Console.CursorTop + 1);
+                Console.Write(subDirectories[i].Substring(path.Length).PadRight(Console.WindowWidth - 1));
+                Console.SetCursorPosition(Console.WindowWidth - 10, Console.CursorTop);
+                Console.Write("Folder");
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            for (int i = 0; i < subFiles.Length; i++)
+            {
+                Console.SetCursorPosition(1, Console.CursorTop + 1);
+                Console.Write(subFiles[i].Substring(path.Length).PadRight(Console.WindowWidth - 1));
+                Console.SetCursorPosition(Console.WindowWidth - 10, Console.CursorTop);
+                Console.Write("File");
+            }
+            Console.ForegroundColor = ConsoleColor.White;
+            SetCommandLine(2, path);
+        }
+        
+        static void Delete()
+        {
+
+        }
+        
 
         static void SetCommandLine(int commandLineHeight, string path)
         {
             Console.SetCursorPosition(1, Console.WindowHeight - commandLineHeight);
-            Console.Write($"{path}\\");
+            Console.Write(">>");
         }
 
         static List<string> ParseString(string userCommand)
@@ -188,6 +213,10 @@ namespace ConsoleFileManager
                         }
                         break;
                     }
+                    if (i + 1 == userCommand.Length) //если строка закончится на следующей итерации цикла, то добавляем полученную команду в Лист
+                    {
+                        commands.Add(userCommand);
+                    }
                 }
 
             }
@@ -199,19 +228,5 @@ namespace ConsoleFileManager
             return commands;
         } //разделение строки на подстроки-команды
 
-        static void ClearFoldersWindow(int yPoint1, int yPoint2) //Метод для затирания текста в нужном окне
-        {
-            if (yPoint1 > 0 && yPoint2 > 0 && yPoint1 < yPoint2 && yPoint2 < Console.WindowHeight)
-            {
-                for (int i = yPoint1; i <= yPoint2; i++)
-                {
-                    Console.SetCursorPosition(1, i);
-                    for (int j = 1; j < Console.WindowWidth; j++)
-                    {
-                        Console.Write(' ');
-                    }
-                }
-            }
-        }
     }
 }
