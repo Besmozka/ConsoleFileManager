@@ -1,23 +1,51 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 
 namespace ConsoleFileManager
 {
+    class Settings
+    {
+        public int windowHeight { get; set; }
+        public int windowWidth { get; set; }
+        public int bufferHeight { get; set; }
+        public int bufferWidth { get; set; }
+        int infoWindowHeight { get; }
+        int commandLineHeight { get; }
+        public string lastPath { get; set; }
+        public Settings()
+        {
+            windowHeight = 50;
+            windowWidth = 160;
+
+            bufferHeight = 250;
+            bufferWidth = 160;
+
+            infoWindowHeight = 5;
+            commandLineHeight = 2;
+
+            lastPath = "C:\\";
+        }
+    }
     class Program
     {
         static void Main(string[] args)
         {
-            List<string> userCommand;
-            var startDirectory = "C:\\";
+            string settingsFile = "Settings.json";
+            var settings = new Settings();
 
-            Settings();
+            CheckSettingsFile(settingsFile, ref settings);
+
+            List<string> userCommand;
+            var directory = settings.lastPath;
+
             DrawWindows();
             while (true)
             {   
-                FolderContents(startDirectory);
-                FolderInfo(startDirectory);
-                SetCommandLine(2, startDirectory);
+                FolderContents(directory);
+                FolderInfo(directory);
+                SetCommandLine(2, directory);
                 userCommand = ParseString(Console.ReadLine());
                 switch (userCommand[0])
                 {
@@ -26,29 +54,48 @@ namespace ConsoleFileManager
                     case "del":
                         break;
                     case "cd":
-                        FolderContents(userCommand[1]);
-                        FolderInfo(userCommand[1]);
-                        SetCommandLine(2, userCommand[1]);
-                        break;
-                    case "exit":
+                        if (Directory.Exists(userCommand[1]))
+                        {
+                            FolderContents(userCommand[1]);
+                            FolderInfo(userCommand[1]);
+                            SetCommandLine(2, userCommand[1]);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Такого пути не существует, попробуйте снова");
+                        }
                         break;
                 }
                 if (userCommand[0] == "exit")
                 {
+                    settings.lastPath = directory;
+                    SaveSettingsFile(settingsFile, settings);
                     break;
                 }
-                startDirectory = userCommand[1];
+                directory = userCommand[1];
             }
         }
 
-        static void Settings()
+        static void CheckSettingsFile(string settingsFile, ref Settings settings)
         {
-            string lastPath = "";
             Console.Title = "Console File Manager";
-            Console.SetWindowSize(160, 50);
-            Console.SetBufferSize(160, 160);
-            int infoWindowHeight = 5;
-            int commandLineHeight = 2;
+            string path = Directory.GetCurrentDirectory();
+            if (File.Exists(path + "\\" + settingsFile))
+            {
+                string jsonSettings = File.ReadAllText(path + "\\" + settingsFile);
+                settings = JsonSerializer.Deserialize<Settings>(jsonSettings);
+            }
+            else
+            {
+                settings = new Settings();
+            }
+        }
+
+        static void SaveSettingsFile(string settingsFile, Settings settings)
+        {
+            string path = Directory.GetCurrentDirectory();
+            string jsonSettings = JsonSerializer.Serialize(settings);
+            File.WriteAllText(path + "\\" + settingsFile, jsonSettings);
         }
 
         static void DrawWindows()
@@ -181,6 +228,8 @@ namespace ConsoleFileManager
 
         static void SetCommandLine(int commandLineHeight, string path)
         {
+            Console.SetCursorPosition(1, Console.WindowHeight - commandLineHeight);
+            Console.WriteLine(" ".PadRight(Console.WindowWidth - 1));
             Console.SetCursorPosition(1, Console.WindowHeight - commandLineHeight);
             Console.Write(">>");
         }
