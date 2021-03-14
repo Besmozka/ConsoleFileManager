@@ -13,6 +13,9 @@ namespace ConsoleFileManager
         public int bufferWidth { get; }
         public int infoWindowHeight { get; }
         public int commandLineHeight { get; }
+        public int pageLines { get; }
+        public string settingsFile { get; }
+        public int pageNumber { get; set; }
         public string lastPath { get; set; }
         public Settings()
         {
@@ -23,75 +26,267 @@ namespace ConsoleFileManager
             infoWindowHeight = 5;
             commandLineHeight = 2;
             lastPath = "C:\\";
+            settingsFile = "Settings.json";
+            pageNumber = 1;
+            pageLines = windowHeight - infoWindowHeight - commandLineHeight - 1; //вычисляем кол-во элементов на странице с учетом символа рамки
         }
     }
     class Program
     {
+        // FileInfo мозг ебет
+        // рекурсивное удаление каталогов
         static void Main(string[] args)
         {
-            string settingsFile = "Settings.json";
             var settings = new Settings();
 
-            CheckSettingsFile(settingsFile, ref settings);
+            CheckSettingsFile(settings.settingsFile, ref settings);
 
-            List<string> userCommand;
-            var directory = settings.lastPath;
+            List<string> userCommands;
+            var currentDirectory = settings.lastPath;
+            int pageNumber = settings.pageNumber;
+            string pathFrom;
+            string pathTo;
 
             DrawWindows(settings);
-            Folders(directory, settings);
-            Files(directory, settings);
-            FolderInfo(directory);
-            FileInfo("C:\\EasyAntiCheat_Setup.exe");
+            Directories(currentDirectory, pageNumber, settings);
+            Files(currentDirectory, pageNumber, settings);
+            DirectoryInfo(currentDirectory);
 
             while (true)
             {
-                SetCommandLine();
-                userCommand = ParseString(Console.ReadLine());
-                switch (userCommand[0])
+                SetCommandLine();                
+                userCommands = ParseString(Console.ReadLine());
+                if (userCommands.Count <= 1)
                 {
+                    SetCommandLine();
+                    Help(settings);
+                    Console.Write("Неправильная команда. Набор команд в окне информации. 'exit' -  для выхода (Нажмите любую клавишу)");
+                    Console.ReadKey();
+                    continue;
+                }
+                var command = userCommands[0];
+                switch (command)
+                {
+                    case "test":
+                        Directories("C:\\New\\1 — копия", 1, settings);
+                        break;
+
+
+
+
+
+
+
                     case "copy":
+                        pathFrom = userCommands[1];
+                        if (Directory.Exists(pathFrom) && userCommands.Count == 3)
+                        {
+                            pathTo = userCommands[2];
+                            if (!Directory.Exists(pathTo))
+                            {
+                                CopyDirectory(pathFrom, pathTo);
+                            }
+                            else
+                            {
+                                SetCommandLine();
+                                Console.Write($"{pathTo} уже существует (Нажмите любую клавишу)");
+                                Console.ReadKey();
+                                break;
+                            }
+                        }
+                        else if (File.Exists(pathFrom) && userCommands.Count == 3)
+                        {
+                            pathTo = userCommands[2];
+                            if (!File.Exists(pathTo))
+                            {
+                                CopyFile(pathFrom, pathTo);
+                            }
+                            else
+                            {
+                                SetCommandLine();
+                                Console.Write($"{pathTo} уже существует (Нажмите любую клавишу)");
+                                Console.ReadKey();
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            SetCommandLine();
+                            Console.Write($"{pathFrom} не существует (Нажмите любую клавишу)");
+                            Console.ReadKey();
+                        }
+                        Directories(currentDirectory, pageNumber, settings);
+                        Files(currentDirectory, pageNumber, settings);
                         break;
+
                     case "del":
-                        if (Directory.Exists(userCommand[1]))
+                        pathFrom = userCommands[1];
+                        if (Directory.Exists(pathFrom))
                         {
-                            DeleteFolder(userCommand[1]);
+                            DeleteDirectory(pathFrom);
                         }
-                        else if (File.Exists(userCommand[1]))
+                        else if (File.Exists(pathFrom))
                         {
-                            DeleteFile(userCommand[1]);
+                            DeleteFile(pathFrom);
                         }
                         else
                         {
                             SetCommandLine();
-                            Console.Write("Данной директории не существует (Нажмите любую клавишу)");
+                            Console.Write($"{pathFrom} не существует (Нажмите любую клавишу)");
+                            Console.ReadKey();
+                        }
+                        Directories(currentDirectory, pageNumber, settings);
+                        Files(currentDirectory, pageNumber, settings);
+                        break;
+
+                    case "cd":
+                        var newDirectory = userCommands[1];
+                        if (Directory.Exists(newDirectory))
+                        {
+                            if (userCommands.Count == 4)
+                            {
+                                if (userCommands[2] == "-p")
+                                {
+                                    try
+                                    {
+                                        pageNumber = Convert.ToInt32(userCommands[3]);
+                                    }
+                                    catch (Exception)
+                                    {
+                                        SetCommandLine();
+                                        Console.Write("Неверный формат номера страницы");
+                                        Console.ReadKey();
+                                        break;
+                                    }
+                                    currentDirectory = newDirectory;
+                                    Directories(currentDirectory, pageNumber, settings);
+                                    Files(currentDirectory, pageNumber, settings);
+                                    DirectoryInfo(currentDirectory);
+                                    break;
+                                }
+                                else
+                                {
+                                    SetCommandLine();
+                                    Console.Write("Для команды 'cd' можно использовать только -р аттрибут");
+                                    Console.ReadKey();
+                                    break;
+                                }
+                            }
+                            currentDirectory = newDirectory;
+                            Directories(currentDirectory, pageNumber, settings);
+                            Files(currentDirectory, pageNumber, settings);
+                            DirectoryInfo(currentDirectory);
+                        }
+                        else if (Directory.Exists(Path.Combine(currentDirectory,newDirectory)))
+                        {
+                            if (userCommands.Count == 4)
+                            {
+                                if (userCommands[2] == "-p")
+                                {
+                                    try
+                                    {
+                                        pageNumber = Convert.ToInt32(userCommands[3]);
+                                    }
+                                    catch (Exception)
+                                    {
+                                        SetCommandLine();
+                                        Console.Write("Неверный формат номера страницы");
+                                        Console.ReadKey();
+                                        break;
+                                    }
+                                    currentDirectory = Path.Combine(currentDirectory, newDirectory);
+                                    Directories(currentDirectory, pageNumber, settings);
+                                    Files(currentDirectory, pageNumber, settings);
+                                    DirectoryInfo(currentDirectory);
+                                    break;
+                                }
+                                else
+                                {
+                                    SetCommandLine();
+                                    Console.Write("Для команды 'cd' можно использовать только -р аттрибут");
+                                    Console.ReadKey();
+                                    break;
+                                }
+                            }
+                            currentDirectory = Path.Combine(currentDirectory, newDirectory);
+                            Directories(currentDirectory, pageNumber, settings);
+                            Files(currentDirectory, pageNumber, settings);
+                            DirectoryInfo(currentDirectory);
+                        }
+                        else 
+                        { 
+                            SetCommandLine();
+                            Console.Write($"{newDirectory} не существует, попробуйте снова (Нажмите любую клавишу)");
                             Console.ReadKey();
                         }
                         break;
-                    case "cd":
-                        if (Directory.Exists(userCommand[1]))
+
+                    case "page":
+                        if (userCommands.Count == 3)
                         {
-                            Folders(userCommand[1], settings);
-                            Files(userCommand[1], settings);
-                            FolderInfo(userCommand[1]);
+                            try
+                            {
+                                pageNumber = Convert.ToInt32(userCommands[2]);
+                            }
+                            catch (Exception)
+                            {
+                                SetCommandLine();
+                                Console.Write("Неверный формат номера страницы (Нажмите любую клавишу)");
+                                Console.ReadKey();
+                                break;
+                            }
+                            if (userCommands[1] == "-f")
+                            {                                
+                                Files(currentDirectory, pageNumber, settings);
+                            }
+                            else if (userCommands[1] == "-d")
+                            {
+                                Directories(currentDirectory, pageNumber, settings);
+                            }
+                        }
+                        else
+                        {
+                            try
+                            {
+                                pageNumber = Convert.ToInt32(userCommands[1]);
+                            }
+                            catch (Exception)
+                            {
+                                SetCommandLine();
+                                Console.Write("Неверный формат номера страницы (Нажмите любую клавишу)");
+                                Console.ReadKey();
+                                break;
+                            }
+                            Directories(currentDirectory, pageNumber, settings);
+                            Files(currentDirectory, pageNumber, settings);
+                        }
+                        break;
+
+                    case "info":
+                        pathFrom = userCommands[1];
+                        if (File.Exists(pathFrom))
+                        {
+                            FileInfo(pathFrom);
                         }
                         else
                         {
                             SetCommandLine();
-                            Console.WriteLine("Такого пути не существует, попробуйте снова (Нажмите любую клавишу)");
+                            Console.Write($"{pathFrom} не существует, попробуйте снова (Нажмите любую клавишу)");
                             Console.ReadKey();
                         }
+                        break;
+
+                    default:
                         break;
                 }
-                if (userCommand[0] == "exit")
+                if (userCommands[0] == "exit")
                 {
-                    settings.lastPath = directory;
-                    SaveSettingsFile(settingsFile, settings);
+                    settings.lastPath = currentDirectory;
+                    SaveSettingsFile(settings.settingsFile, settings);
                     break;
                 }
-                directory = userCommand[1];
             }
         }
-
 
         static void SetCommandLine()
         {
@@ -106,11 +301,11 @@ namespace ConsoleFileManager
         {
             Console.Title = "Console File Manager";
             string path = Directory.GetCurrentDirectory();
-            if (File.Exists(path + "\\" + settingsFile))
+            if (File.Exists(Path.Combine(path, settingsFile)))
             {
                 try
                 {
-                    string jsonSettings = File.ReadAllText(path + "\\" + settingsFile);
+                    string jsonSettings = File.ReadAllText(Path.Combine(path, settingsFile));
                     settings = JsonSerializer.Deserialize<Settings>(jsonSettings);
                     Console.SetWindowSize(settings.windowWidth, settings.windowHeight);
                     Console.SetBufferSize(settings.bufferWidth, settings.bufferHeight);
@@ -133,7 +328,7 @@ namespace ConsoleFileManager
             string jsonSettings = JsonSerializer.Serialize(settings);
             try
             {
-                File.WriteAllText(path + "\\" + settingsFile, jsonSettings);
+                File.WriteAllText(Path.Combine(path, settingsFile), jsonSettings);
             }
             catch (Exception)
             {
@@ -194,7 +389,7 @@ namespace ConsoleFileManager
                     Console.SetCursorPosition((Console.WindowWidth / 2) - 1, Console.CursorTop);
                     Console.Write(topMiddle);
                     Console.SetCursorPosition(2, Console.CursorTop);
-                    Console.Write("Folders");
+                    Console.Write("Directories");
                     Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.CursorTop);
                     Console.Write("Files");
                 }
@@ -211,7 +406,7 @@ namespace ConsoleFileManager
                     Console.SetCursorPosition((Console.WindowWidth / 2) - 1, Console.CursorTop);
                     Console.Write(middleDoubleBoth);
                     Console.SetCursorPosition(2, Console.CursorTop);
-                    Console.Write("Folder Info");
+                    Console.Write("Directory Info");
                     Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.CursorTop);
                     Console.Write("Files Info");
                 }
@@ -251,17 +446,18 @@ namespace ConsoleFileManager
         static void FileInfo(string path)
         {
             Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - 7);
-            Console.Write($"Creation: {File.GetCreationTime(path)}".PadRight(Console.WindowWidth / 2 - 3));
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - 6);
-            Console.Write($"Last Access: {File.GetLastAccessTime(path)}".PadRight(Console.WindowWidth / 2 - 3));
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - 5);
+            Console.Write($"File: {path}".PadRight(Console.WindowWidth / 2 - 3));
+            Console.CursorTop = Console.WindowHeight - 6;
+            Console.Write($"Last Access: {File.GetLastAccessTime(path)} / ");
             Console.Write($"Last Write: {File.GetLastWriteTime(path)}".PadRight(Console.WindowWidth / 2 - 3));
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - 4);
+            Console.CursorTop = Console.WindowHeight - 5;
+            Console.Write($"Creation: {File.GetCreationTime(path)}".PadRight(Console.WindowWidth / 2 - 3));
+            Console.CursorTop = Console.WindowHeight - 4;
             Console.Write($"Attributes: {File.GetAttributes(path)}".PadRight(Console.WindowWidth / 2 - 3));
             SetCommandLine();
-        } //выводим информацию о каталоге в окно информации
+        } //вывод информации о файле
 
-        static void FolderInfo(string path)
+        static void DirectoryInfo(string path)
         {
             var directories = Directory.GetDirectories(path);
             var files = Directory.GetFiles(path);
@@ -275,56 +471,104 @@ namespace ConsoleFileManager
             Console.SetCursorPosition(1, Console.WindowHeight - 4);
             Console.Write($"Contents: {directories.Length} Folders and {files.Length} Files".PadRight(Console.WindowWidth / 2 - 2));
             SetCommandLine();
-        } //выводим информацию о каталоге в окно информации
+        } //вывод информации о каталоге
 
-        static void Files(string path, Settings settings)  //выводим файлы
+        static void Files(string path, int pageNumber, Settings settings)  //вывод файлов
         {
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, 1);
+            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, 1); 
             Console.Write(path.ToUpper().PadRight(Console.WindowWidth / 2 - 3));
-            string[] subFiles = Directory.GetFiles(path);
-            var pageLines = settings.windowHeight - settings.infoWindowHeight - settings.commandLineHeight - 1;
-            var pages = GetPagesNumber(pageLines,subFiles.Length);
+
+            string[] files = Directory.GetFiles(path);
+            var pages = GetPagesNumber(settings.pageLines, files.Length);
+            if (pageNumber <= 0 || pageNumber > pages)
+            {
+                SetCommandLine();
+                return;
+            }
 
             Console.ForegroundColor = ConsoleColor.Green;
-            for (int i = 0; i < subFiles.Length; i++)
+            if (files.Length < settings.pageLines * pageNumber - 2)
             {
-                Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.CursorTop + 1);
-                Console.Write(subFiles[i].Substring(path.Length).PadRight(Console.WindowWidth / 2 - 3));
+                for (int i = (settings.pageLines * pageNumber) - settings.pageLines; i < files.Length; i++)
+                {
+                    Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.CursorTop + 1);
+                    Console.Write(files[i].Substring(path.Length).PadRight(Console.WindowWidth / 2 - 3));
+                }
+                for (int i = files.Length; i < Console.WindowHeight - 10; i++)
+                {
+                    Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.CursorTop + 1);
+                    Console.Write(" ".PadRight(Console.WindowWidth / 2 - 3));
+                }
+            }
+            else
+            {
+                for (int i = (settings.pageLines * pageNumber) - settings.pageLines; i < settings.pageLines * pageNumber - 2; i++)
+                {
+                    Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.CursorTop + 1);
+                    Console.Write(files[i].Substring(path.Length).PadRight(Console.WindowWidth / 2 - 3));
+                }
             }
             Console.ForegroundColor = ConsoleColor.White;
+            Console.SetCursorPosition(Console.WindowWidth / 4 * 3, Console.WindowHeight - 8);
+            Console.Write($"Page {pageNumber} of {pages}");
             SetCommandLine();
-
         }
-        static void Folders(string path, Settings settings) //выводим каталоги
+
+        static void Directories(string path, int pageNumber, Settings settings) //вывод каталогов
         {
             Console.SetCursorPosition(1, 1);
             Console.Write(path.ToUpper().PadRight(Console.WindowWidth / 2 - 2));
-            string[] subDirectories = Directory.GetDirectories(path);
-            var pageLines = settings.windowHeight - settings.infoWindowHeight - settings.commandLineHeight - 1;
-            var pages = GetPagesNumber(pageLines, subDirectories.Length);
-            
+
+            string[] directories = Directory.GetDirectories(path);
+            var pages = GetPagesNumber(settings.pageLines, directories.Length);
+            if (pageNumber <= 0 || pageNumber > pages)
+            {
+                SetCommandLine();
+                return;
+            }
 
 
             Console.ForegroundColor = ConsoleColor.Yellow;
-            for (int i = 0; i < subDirectories.Length; i++)
+            if (directories.Length < settings.pageLines * pageNumber - 2)
             {
-                Console.SetCursorPosition(1, Console.CursorTop + 1);
-                Console.Write(subDirectories[i].Substring(path.Length).PadRight(Console.WindowWidth / 2 - 2));
+                for (int i = (settings.pageLines * pageNumber) - settings.pageLines; i < directories.Length; i++)
+                {
+                    Console.SetCursorPosition(1, Console.CursorTop + 1);
+                    Console.Write(directories[i].Substring(path.Length).PadRight(Console.WindowWidth / 2 - 2));
+
+                }
+                for (int i = directories.Length; i < Console.WindowHeight - 10; i++)
+                {
+                    Console.SetCursorPosition(1, Console.CursorTop + 1);
+                    Console.Write(" ".PadRight(Console.WindowWidth / 2 - 3));
+                }
+            }
+            else
+            {
+                for (int i = (settings.pageLines * pageNumber) - settings.pageLines; i < settings.pageLines * pageNumber - 2; i++)
+                {
+                    Console.SetCursorPosition(1, Console.CursorTop + 1);
+                    Console.Write(directories[i].Substring(path.Length).PadRight(Console.WindowWidth / 2 - 2));
+                }
             }
             Console.ForegroundColor = ConsoleColor.White;
+            Console.SetCursorPosition(Console.WindowWidth / 4, Console.WindowHeight - 8);
+            Console.Write($"Page {pageNumber} of {pages}");
             SetCommandLine();
         }
 
-        static void DeleteFolder(string path) //удаление каталог
+        static void DeleteDirectory(string path) //удаление каталога
         {
             try
             {
                 Directory.Delete(path, true);
+                SetCommandLine();
+                Console.Write("Удаление успешно");
             }
-            catch
+            catch (Exception e)
             {
                 SetCommandLine();
-                Console.Write($"Ошибка при удалении каталога: {path}");
+                Console.Write($"Ошибка при удалении каталога: {path} {e.Message}");
                 Console.ReadKey();
             }
         }
@@ -334,38 +578,183 @@ namespace ConsoleFileManager
             try
             {
                 File.Delete(path);
+                Console.Write("Удаление успешно");
             }
-            catch
+            catch (Exception e)
             {
                 SetCommandLine();
-                Console.Write($"Ошибка при удалении файла: {path}");
+                Console.Write($"Ошибка при удалении файла: {path} {e.Message}");
                 Console.ReadKey();
             }
         }        
 
+        static void CopyDirectory(string pathFrom, string pathTo)
+        {
+            DirectoryInfo dir = new DirectoryInfo(pathFrom);
+            DirectoryInfo[] dirs = dir.GetDirectories();
+            FileInfo[] files = dir.GetFiles();
+            Directory.CreateDirectory(pathTo);
+            foreach (FileInfo file in files)
+            {
+                string tempPath = Path.Combine(pathTo, file.Name);
+                try
+                {
+                    file.CopyTo(tempPath, false);
+                }
+                catch (Exception)
+                {
+                    SetCommandLine();
+                    Console.Write($"Ошибка при копировании файла {file.Name} (Нажмите любую клавишу)");
+                    Console.ReadKey();
+                }
+            }
+
+            foreach (DirectoryInfo subdir in dirs)
+            {
+                string tempPath = Path.Combine(pathTo, subdir.Name);
+                try
+                {
+                    CopyDirectory(subdir.FullName, tempPath);
+                }
+                catch (Exception)
+                {
+                    SetCommandLine();
+                    Console.Write($"Ошибка при копировании директории {subdir.FullName} (Нажмите любую клавишу)");
+                    Console.ReadKey();
+                }
+            }
+        } //копирование директории
+
+        static void CopyFile(string pathFrom, string pathTo)
+        {
+            try
+            {
+                File.Copy(pathFrom, pathTo);
+                SetCommandLine();
+                Console.Write("Копирование успешно");
+            }
+            catch (Exception e)
+            {
+                SetCommandLine();
+                Console.Write($"При копировании произошла ошибка");
+                Console.ReadKey();
+            }
+        } //копирование файла
+
+        static void Help(Settings settings)
+        {
+            var height = Console.WindowHeight - settings.infoWindowHeight + 1;
+            Console.SetCursorPosition(1, height);
+            Console.Write($"'cd ДИРЕКТОРИЯ' - переход в директорию");
+            Console.CursorLeft = Console.WindowWidth / 2;
+            Console.Write($"'page НОМЕР_СТРАНИЦЫ' - переход по страницам".PadRight(Console.WindowWidth / 2 - 2));
+            Console.SetCursorPosition(1, --height);
+            Console.Write($"'-p НОМЕР_СТРАНИЦЫ' - переход в директорию на страницу");
+            Console.CursorLeft = Console.WindowWidth / 2;
+            Console.Write($"'-d' - переход на нужную страницу директорий".PadRight(Console.WindowWidth / 2 - 2));
+            Console.SetCursorPosition(1, --height);
+            Console.Write($"'del ДИРЕКТОРИЯ' - удаление директории или файла");
+            Console.CursorLeft = Console.WindowWidth / 2;
+            Console.Write($"'-f' - переход на нужную страницу файлов".PadRight(Console.WindowWidth / 2 - 2));
+            Console.SetCursorPosition(1, --height);
+            Console.Write($"'info ПУТЬ_К_ФАЙЛУ' - информация о файле");
+            Console.CursorLeft = Console.WindowWidth / 2;
+            Console.Write($"'copy КОПИРУЕМАЯ_ДИРЕКТОРИЯ КОНЕЧНАЯ_ДИРЕКТОРИЯ' - копирование".PadRight(Console.WindowWidth / 2 - 2));
+            SetCommandLine();
+        } //вывод помощи
+
         static List<string> ParseString(string userCommand)
         {
             var commands = new List<string>();
-            string temp = null;
+            string tempString = null;
             if (userCommand != null)
             {
                 for (int i = 0; i < userCommand.Length; i++) //проходим по строке от [0] индекса до первого пробела..
                 {
                     if (userCommand[i] == ' ')
                     {
-                        commands.Add(userCommand.Substring(0, i)); //.. и добавляем в Лист полученную строку.
+                        for (int t = 0; t < i; t++)
+                        {
+                            tempString = tempString + userCommand[t];
+                        }
+                        commands.Add(tempString); //.. и добавляем в Лист полученную строку.
+                        tempString = null;
                         i++; //пропускаем пробел.
+                        int tempIndex = i;
+                        if (commands[0] == "copy")
+                        {
+                            for (int k = i + 2; k < userCommand.Length; k++) //пропускаем первое двоеточие
+                            {
+                                if (userCommand[k] == ':')
+                                {
+                                    for (int h = i; h < k - 2; h++)
+                                    {
+                                        tempString = tempString + userCommand[h];
+                                    }
+                                    commands.Add(tempString); //.. добавляем в Лист полученный путь.
+                                    tempString = null;
+                                    for (int l = k - 1; l < userCommand.Length; l++)
+                                    {
+                                        tempString = tempString + userCommand[l];
+                                    }
+                                    commands.Add(tempString); //.. добавляем в Лист полученный путь.
+                                }
+                            }
+                            return commands;
+                        }
+
+                        if (commands[0] == "info" || commands[0] == "del")
+                        {
+                            for (int k = i; k < userCommand.Length; k++)
+                            {
+                                tempString = tempString + userCommand[k];
+                            }
+                            commands.Add(tempString); //.. добавляем в Лист оставшийся путь.
+                            return commands;
+                        }
+
+                        if (commands[0] == "cd")
+                        {
+                            for (int k = i; k < userCommand.Length; k++)
+                            {
+                                if (userCommand[k] == '-')
+                                {
+                                    for (int j = i; j < k - 1; j++)
+                                    {
+                                        tempString = tempString + userCommand[j];
+                                    }
+                                    commands.Add(tempString); //добавляем в лист путь
+                                    tempString = null;
+                                    tempString = tempString + userCommand[k];
+                                    tempString = tempString + userCommand[k + 1]; //добавляем аргумент -p
+                                    commands.Add(tempString);
+                                    tempString = null;
+                                    tempString = tempString + userCommand[k + 3]; //добавляем номер страницы
+                                    commands.Add(tempString);
+                                    return commands;
+                                }
+                                if (k + 1 == userCommand.Length)
+                                {
+                                    for (int j = i; j < userCommand.Length; j++)
+                                    {
+                                        tempString = tempString + userCommand[j];
+                                    }
+                                    commands.Add(tempString);
+                                    return commands;
+                                }
+                            }
+                        }
+
                         for (int j = i; j < userCommand.Length; j++)  //продолжаем идти по строке начиная с i-го индекса,
                         {
                             if (userCommand[j] == ' ') //если после пути есть пробел, то добавляем путь в Лист и продолжаем идти по строке
                             {
-                                commands.Add(userCommand.Substring(i, j - i));
-                                j++;
-                                break;
+                                commands.Add(userCommand.Substring(tempIndex, j - tempIndex));
+                                tempIndex = ++j; //пропускаем пробел
                             }
                             if (j + 1 == userCommand.Length) //если строка закончится на следующей итерации цикла, то добавляем полученный путь в Лист
                             {
-                                commands.Add(userCommand.Substring(i, (j + 1) - i));
+                                commands.Add(userCommand.Substring(tempIndex, (j + 1) - tempIndex));
                                 break;
                             }
                         }
