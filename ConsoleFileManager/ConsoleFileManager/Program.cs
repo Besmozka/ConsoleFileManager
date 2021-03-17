@@ -35,6 +35,8 @@ namespace ConsoleFileManager
     {
         // FileInfo мозг ебет
         // рекурсивное удаление каталогов
+        // вывод каталогов в виде дерева
+        // размер файлов и папок в итнформации
         static void Main(string[] args)
         {
             var settings = new Settings();
@@ -445,14 +447,17 @@ namespace ConsoleFileManager
 
         static void FileInfo(string path)
         {
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - 7);
+            var settings = new Settings();
+
+            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight));
             Console.Write($"File: {path}".PadRight(Console.WindowWidth / 2 - 3));
-            Console.CursorTop = Console.WindowHeight - 6;
+            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight) + 1);
             Console.Write($"Last Access: {File.GetLastAccessTime(path)} / ");
             Console.Write($"Last Write: {File.GetLastWriteTime(path)}".PadRight(Console.WindowWidth / 2 - 3));
-            Console.CursorTop = Console.WindowHeight - 5;
-            Console.Write($"Creation: {File.GetCreationTime(path)}".PadRight(Console.WindowWidth / 2 - 3));
-            Console.CursorTop = Console.WindowHeight - 4;
+            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight) + 2);
+            Console.Write($"Creation: {File.GetCreationTime(path)} / ");
+            Console.Write($"Size: {File.GetCreationTime(path)} / ".PadRight(Console.WindowWidth / 2 - 3));
+            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight) + 3);
             Console.Write($"Attributes: {File.GetAttributes(path)}".PadRight(Console.WindowWidth / 2 - 3));
             SetCommandLine();
         } //вывод информации о файле
@@ -461,6 +466,7 @@ namespace ConsoleFileManager
         {
             var directories = Directory.GetDirectories(path);
             var files = Directory.GetFiles(path);
+            var settings = new Settings();
 
             Console.SetCursorPosition(1, Console.WindowHeight - 7);
             Console.Write($"Creation: {Directory.GetCreationTime(path)}".PadRight(Console.WindowWidth / 2 - 2));
