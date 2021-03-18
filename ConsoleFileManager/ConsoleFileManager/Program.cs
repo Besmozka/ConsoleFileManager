@@ -33,10 +33,6 @@ namespace ConsoleFileManager
     }
     class Program
     {
-        // FileInfo мозг ебет
-        // рекурсивное удаление каталогов
-        // вывод каталогов в виде дерева
-        // размер файлов и папок в итнформации
         static void Main(string[] args)
         {
             var settings = new Settings();
@@ -278,6 +274,13 @@ namespace ConsoleFileManager
                         }
                         break;
 
+                    case "size":
+                        var path = userCommands[1];
+                        int cursorTop = Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight);
+                        Console.SetCursorPosition(1, cursorTop + 3);
+                        Console.Write($"Size of {path.ToUpper()}: {GetSize(path)} bytes".PadRight(Console.WindowWidth / 2 - 2));
+                        break;
+
                     default:
                         break;
                 }
@@ -290,16 +293,16 @@ namespace ConsoleFileManager
             }
         }
 
-        static void SetCommandLine()
+        static void SetCommandLine() //выставляем курсор в командную строку
         {
             var settings = new Settings();
             Console.SetCursorPosition(1, Console.WindowHeight - settings.commandLineHeight);
             Console.WriteLine(" ".PadRight(Console.WindowWidth - 2));
             Console.SetCursorPosition(1, Console.WindowHeight - settings.commandLineHeight);
             Console.Write(">>");
-        } //выставляем курсор в командную строку
+        }
 
-        static void CheckSettingsFile(string settingsFile, ref Settings settings)
+        static void CheckSettingsFile(string settingsFile, ref Settings settings) //проверяем наличие файла настроек. При его наличии считываем настройки, иначе используем стандартные
         {
             Console.Title = "Console File Manager";
             string path = Directory.GetCurrentDirectory();
@@ -309,6 +312,7 @@ namespace ConsoleFileManager
                 {
                     string jsonSettings = File.ReadAllText(Path.Combine(path, settingsFile));
                     settings = JsonSerializer.Deserialize<Settings>(jsonSettings);
+                    string[] directories = Directory.GetDirectories(settings.lastPath);
                     Console.SetWindowSize(settings.windowWidth, settings.windowHeight);
                     Console.SetBufferSize(settings.bufferWidth, settings.bufferHeight);
                 }
@@ -322,9 +326,9 @@ namespace ConsoleFileManager
             {
                 settings = new Settings();
             }
-        } //проверяем наличие файла настроек. При его наличии считываем настройки, иначе используем стандартные
+        }
 
-        static void SaveSettingsFile(string settingsFile, Settings settings)
+        static void SaveSettingsFile(string settingsFile, Settings settings) //сохраняем настройки в JSON файле 
         {
             string path = Directory.GetCurrentDirectory();
             string jsonSettings = JsonSerializer.Serialize(settings);
@@ -338,9 +342,9 @@ namespace ConsoleFileManager
                 Console.Write("Ошибка при записи файла настроек!");
                 Console.ReadKey();
             }
-        } //сохраняем настройки в JSON файле 
+        }
 
-        static int GetPagesNumber(int pageLines, int amountElements)
+        static int GetPagesNumber(int pageLines, int amountElements) //получаем количество страниц
         {
             var count = 0;
             if (amountElements >= 0)
@@ -350,9 +354,9 @@ namespace ConsoleFileManager
                 count = GetPagesNumber(pageLines, amountElements) + count;
             }            
             return count;
-        } //получаем количество страниц
+        }
 
-        static void DrawWindows(Settings settings)
+        static void DrawWindows(Settings settings) //рисуем рамку с окнами
         {
             char topRight = '\u2555'; // ╕
             char topLeft = '\u2552'; // ╒
@@ -443,42 +447,95 @@ namespace ConsoleFileManager
             Console.SetCursorPosition(Console.WindowWidth - 1, Console.WindowHeight - 1);
             Console.Write(downRight);
             return;
-        } //рисуем рамку с окнами
+        }
 
-        static void FileInfo(string path)
+        static void FileInfo(string path) //вывод информации о файле
         {
             var settings = new Settings();
+            FileInfo fileInfo = new FileInfo(path);
+            int cursorTop = Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight);
 
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight));
+            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, cursorTop);
             Console.Write($"File: {path}".PadRight(Console.WindowWidth / 2 - 3));
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight) + 1);
-            Console.Write($"Last Access: {File.GetLastAccessTime(path)} / ");
-            Console.Write($"Last Write: {File.GetLastWriteTime(path)}".PadRight(Console.WindowWidth / 2 - 3));
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight) + 2);
-            Console.Write($"Creation: {File.GetCreationTime(path)} / ");
-            Console.Write($"Size: {File.GetCreationTime(path)} / ".PadRight(Console.WindowWidth / 2 - 3));
-            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight) + 3);
-            Console.Write($"Attributes: {File.GetAttributes(path)}".PadRight(Console.WindowWidth / 2 - 3));
-            SetCommandLine();
-        } //вывод информации о файле
 
-        static void DirectoryInfo(string path)
+            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, cursorTop + 1);
+            Console.Write($"Last Access: {fileInfo.LastAccessTime} / ");
+            Console.Write($"Last Write: {fileInfo.LastWriteTime}".PadRight(Console.WindowWidth / 2 - 3));
+
+            Console.SetCursorPosition(Console.WindowWidth / 2 + 1, cursorTop + 2);
+            Console.Write($"Creation: {fileInfo.CreationTime} / ");
+            Console.Write($"Attributes: {fileInfo.Attributes}".PadRight(Console.WindowWidth / 2 - 3));
+            SetCommandLine();
+        }
+
+        static void DirectoryInfo(string path) //вывод информации о каталоге
         {
+            DirectoryInfo directoryInfo = new DirectoryInfo(path);
             var directories = Directory.GetDirectories(path);
             var files = Directory.GetFiles(path);
             var settings = new Settings();
+            int cursorTop = Console.WindowHeight - (settings.infoWindowHeight + settings.commandLineHeight);
 
-            Console.SetCursorPosition(1, Console.WindowHeight - 7);
-            Console.Write($"Creation: {Directory.GetCreationTime(path)}".PadRight(Console.WindowWidth / 2 - 2));
-            Console.SetCursorPosition(1, Console.WindowHeight - 6);
-            Console.Write($"Last Access: {Directory.GetLastAccessTime(path)}".PadRight(Console.WindowWidth / 2 - 2));
-            Console.SetCursorPosition(1, Console.WindowHeight - 5);
-            Console.Write($"Last Write: {Directory.GetLastWriteTime(path)}".PadRight(Console.WindowWidth / 2 - 2));
-            Console.SetCursorPosition(1, Console.WindowHeight - 4);
+            Console.SetCursorPosition(1, cursorTop);
+            Console.Write($"Creation: {directoryInfo.CreationTime}".PadRight(Console.WindowWidth / 2 - 2));
+
+            Console.SetCursorPosition(1, cursorTop + 1);
+            Console.Write($"Last Access: {directoryInfo.LastAccessTime} / ");
+            Console.Write($"Last Write: {directoryInfo.LastWriteTime}".PadRight(8));
+
+            Console.SetCursorPosition(1, cursorTop + 2);
             Console.Write($"Contents: {directories.Length} Folders and {files.Length} Files".PadRight(Console.WindowWidth / 2 - 2));
             SetCommandLine();
-        } //вывод информации о каталоге
+        }
 
+        static long GetSize(string path) // получение размера файла или каталога
+        {
+            if (Directory.Exists(path))
+            {
+                string[] subDirectories;
+                try
+                {
+                    subDirectories = Directory.GetDirectories(path);
+                }
+                catch
+                {
+                    return 0;
+                }
+                var subFiles = Directory.GetFiles(path);
+                long size = 0;
+                if (subDirectories.Length != 0)
+                {
+                    foreach (var file in subFiles)
+                    {
+                        FileInfo fileInfo = new FileInfo(file);
+                        size += fileInfo.Length;
+                    }
+                    foreach (var directory in subDirectories)
+                    {
+                        size += GetSize(directory);
+                    }
+                }
+                else
+                {
+                    foreach (var file in subFiles)
+                    {
+                        FileInfo fileInfo = new FileInfo(file);
+                        size += fileInfo.Length;
+                    }
+                }
+                return size;
+            }
+            else if (File.Exists(path))
+            {
+                FileInfo fileInfo = new FileInfo(path);
+                return fileInfo.Length;
+            }
+            else
+            {
+                return 0;
+            }
+            
+        }
         static void Files(string path, int pageNumber, Settings settings)  //вывод файлов
         {
             Console.SetCursorPosition(Console.WindowWidth / 2 + 1, 1); 
@@ -594,7 +651,7 @@ namespace ConsoleFileManager
             }
         }        
 
-        static void CopyDirectory(string pathFrom, string pathTo)
+        static void CopyDirectory(string pathFrom, string pathTo)  //копирование директории
         {
             DirectoryInfo dir = new DirectoryInfo(pathFrom);
             DirectoryInfo[] dirs = dir.GetDirectories();
@@ -629,9 +686,9 @@ namespace ConsoleFileManager
                     Console.ReadKey();
                 }
             }
-        } //копирование директории
+        }
 
-        static void CopyFile(string pathFrom, string pathTo)
+        static void CopyFile(string pathFrom, string pathTo) //копирование файла
         {
             try
             {
@@ -645,9 +702,9 @@ namespace ConsoleFileManager
                 Console.Write($"При копировании произошла ошибка");
                 Console.ReadKey();
             }
-        } //копирование файла
+        } 
 
-        static void Help(Settings settings)
+        static void Help(Settings settings) //вывод помощи
         {
             var height = Console.WindowHeight - settings.infoWindowHeight + 1;
             Console.SetCursorPosition(1, height);
@@ -667,9 +724,9 @@ namespace ConsoleFileManager
             Console.CursorLeft = Console.WindowWidth / 2;
             Console.Write($"'copy КОПИРУЕМАЯ_ДИРЕКТОРИЯ КОНЕЧНАЯ_ДИРЕКТОРИЯ' - копирование".PadRight(Console.WindowWidth / 2 - 2));
             SetCommandLine();
-        } //вывод помощи
+        } 
 
-        static List<string> ParseString(string userCommand)
+        static List<string> ParseString(string userCommand)  //разделение строки на подстроки-команды
         {
             var commands = new List<string>();
             string tempString = null;
@@ -779,7 +836,7 @@ namespace ConsoleFileManager
                 return commands;
             }
             return commands;
-        } //разделение строки на подстроки-команды
+        }
 
     }
 }
