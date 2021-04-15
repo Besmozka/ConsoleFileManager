@@ -19,8 +19,6 @@ namespace ConsoleFileManager
         public string lastPath { get; set; }
         public Settings()
         {
-            windowHeight = 50;
-            windowWidth = 160;
             bufferHeight = 250;
             bufferWidth = 160;
             infoWindowHeight = 5;
@@ -28,7 +26,9 @@ namespace ConsoleFileManager
             lastPath = "C:\\";
             settingsFile = "Settings.json";
             pageNumber = 1;
-            pageLines = windowHeight - infoWindowHeight - commandLineHeight - 1; //вычисляем кол-во элементов на странице с учетом символа рамки
+            pageLines = 35;
+            windowHeight = pageLines + infoWindowHeight + commandLineHeight + 1;
+            windowWidth = 160;
         }
     }
     class Program
@@ -52,8 +52,10 @@ namespace ConsoleFileManager
 
             while (true)
             {
-                SetCommandLine();                
-                userCommands = ParseString(Console.ReadLine());
+                SetCommandLine();
+                var userString = Console.ReadLine();
+                userCommands = ParseString(userString);
+
                 if (userCommands.Count <= 1)
                 {
                     SetCommandLine();
@@ -62,19 +64,11 @@ namespace ConsoleFileManager
                     Console.ReadKey();
                     continue;
                 }
+
                 var command = userCommands[0];
+
                 switch (command)
                 {
-                    case "test":
-                        Directories("C:\\New\\1 — копия", 1, settings);
-                        break;
-
-
-
-
-
-
-
                     case "copy":
                         pathFrom = userCommands[1];
                         if (Directory.Exists(pathFrom) && userCommands.Count == 3)
@@ -280,9 +274,6 @@ namespace ConsoleFileManager
                         Console.SetCursorPosition(1, cursorTop + 3);
                         Console.Write($"Size of {path.ToUpper()}: {GetSize(path)} bytes".PadRight(Console.WindowWidth / 2 - 2));
                         break;
-
-                    default:
-                        break;
                 }
                 if (userCommands[0] == "exit")
                 {
@@ -293,7 +284,9 @@ namespace ConsoleFileManager
             }
         }
 
-        static void SetCommandLine() //выставляем курсор в командную строку
+
+        //выставляем курсор в командную строку
+        static void SetCommandLine()
         {
             var settings = new Settings();
             Console.SetCursorPosition(1, Console.WindowHeight - settings.commandLineHeight);
@@ -302,7 +295,9 @@ namespace ConsoleFileManager
             Console.Write(">>");
         }
 
-        static void CheckSettingsFile(string settingsFile, ref Settings settings) //проверяем наличие файла настроек. При его наличии считываем настройки, иначе используем стандартные
+
+        //проверяем наличие файла настроек. При его наличии считываем настройки, иначе используем стандартные
+        static void CheckSettingsFile(string settingsFile, ref Settings settings)
         {
             Console.Title = "Console File Manager";
             string path = Directory.GetCurrentDirectory();
@@ -328,7 +323,9 @@ namespace ConsoleFileManager
             }
         }
 
-        static void SaveSettingsFile(string settingsFile, Settings settings) //сохраняем настройки в JSON файле 
+
+        //сохраняем настройки в JSON файле 
+        static void SaveSettingsFile(string settingsFile, Settings settings)
         {
             string path = Directory.GetCurrentDirectory();
             string jsonSettings = JsonSerializer.Serialize(settings);
@@ -344,7 +341,9 @@ namespace ConsoleFileManager
             }
         }
 
-        static int GetPagesNumber(int pageLines, int amountElements) //получаем количество страниц
+
+        //получаем количество страниц рекурсивно
+        static int GetPagesNumber(int pageLines, int amountElements)
         {
             var count = 0;
             if (amountElements >= 0)
@@ -356,7 +355,9 @@ namespace ConsoleFileManager
             return count;
         }
 
-        static void DrawWindows(Settings settings) //рисуем рамку с окнами
+
+        //рисуем рамку с окнами
+        static void DrawWindows(Settings settings) 
         {
             char topRight = '\u2555'; // ╕
             char topLeft = '\u2552'; // ╒
@@ -449,7 +450,9 @@ namespace ConsoleFileManager
             return;
         }
 
-        static void FileInfo(string path) //вывод информации о файле
+
+        //вывод информации о файле
+        static void FileInfo(string path)
         {
             var settings = new Settings();
             FileInfo fileInfo = new FileInfo(path);
@@ -468,7 +471,9 @@ namespace ConsoleFileManager
             SetCommandLine();
         }
 
-        static void DirectoryInfo(string path) //вывод информации о каталоге
+
+        //вывод информации о каталоге
+        static void DirectoryInfo(string path)
         {
             DirectoryInfo directoryInfo = new DirectoryInfo(path);
             var directories = Directory.GetDirectories(path);
@@ -488,7 +493,9 @@ namespace ConsoleFileManager
             SetCommandLine();
         }
 
-        static long GetSize(string path) // получение размера файла или каталога
+
+        //получение размера файла или каталога
+        static long GetSize(string path)
         {
             if (Directory.Exists(path))
             {
@@ -536,7 +543,10 @@ namespace ConsoleFileManager
             }
             
         }
-        static void Files(string path, int pageNumber, Settings settings)  //вывод файлов
+
+
+        //вывод файлов
+        static void Files(string path, int pageNumber, Settings settings)  
         {
             Console.SetCursorPosition(Console.WindowWidth / 2 + 1, 1); 
             Console.Write(path.ToUpper().PadRight(Console.WindowWidth / 2 - 3));
@@ -577,7 +587,9 @@ namespace ConsoleFileManager
             SetCommandLine();
         }
 
-        static void Directories(string path, int pageNumber, Settings settings) //вывод каталогов
+
+        //вывод каталогов
+        static void Directories(string path, int pageNumber, Settings settings) 
         {
             Console.SetCursorPosition(1, 1);
             Console.Write(path.ToUpper().PadRight(Console.WindowWidth / 2 - 2));
@@ -620,7 +632,9 @@ namespace ConsoleFileManager
             SetCommandLine();
         }
 
-        static void DeleteDirectory(string path) //удаление каталога
+
+        //удаление каталога
+        static void DeleteDirectory(string path)
         {
             try
             {
@@ -635,8 +649,10 @@ namespace ConsoleFileManager
                 Console.ReadKey();
             }
         }
-
-        static void DeleteFile(string path) //удаление файла
+       
+        
+        //удаление файла
+        static void DeleteFile(string path)
         {
             try
             {
@@ -649,9 +665,11 @@ namespace ConsoleFileManager
                 Console.Write($"Ошибка при удалении файла: {path} {e.Message}");
                 Console.ReadKey();
             }
-        }        
+        }
 
-        static void CopyDirectory(string pathFrom, string pathTo)  //копирование директории
+
+        //копирование директории
+        static void CopyDirectory(string pathFrom, string pathTo) 
         {
             DirectoryInfo dir = new DirectoryInfo(pathFrom);
             DirectoryInfo[] dirs = dir.GetDirectories();
@@ -688,7 +706,9 @@ namespace ConsoleFileManager
             }
         }
 
-        static void CopyFile(string pathFrom, string pathTo) //копирование файла
+
+        //копирование файла
+        static void CopyFile(string pathFrom, string pathTo)
         {
             try
             {
@@ -702,70 +722,95 @@ namespace ConsoleFileManager
                 Console.Write($"При копировании произошла ошибка");
                 Console.ReadKey();
             }
-        } 
+        }
 
-        static void Help(Settings settings) //вывод помощи
+
+        //вывод помощи
+        static void Help(Settings settings)
         {
             var height = Console.WindowHeight - settings.infoWindowHeight + 1;
+
             Console.SetCursorPosition(1, height);
             Console.Write($"'cd ДИРЕКТОРИЯ' - переход в директорию");
+
             Console.CursorLeft = Console.WindowWidth / 2;
             Console.Write($"'page НОМЕР_СТРАНИЦЫ' - переход по страницам".PadRight(Console.WindowWidth / 2 - 2));
+
             Console.SetCursorPosition(1, --height);
             Console.Write($"'-p НОМЕР_СТРАНИЦЫ' - переход в директорию на страницу");
+
             Console.CursorLeft = Console.WindowWidth / 2;
             Console.Write($"'-d' - переход на нужную страницу директорий".PadRight(Console.WindowWidth / 2 - 2));
+
             Console.SetCursorPosition(1, --height);
             Console.Write($"'del ДИРЕКТОРИЯ' - удаление директории или файла");
+
             Console.CursorLeft = Console.WindowWidth / 2;
             Console.Write($"'-f' - переход на нужную страницу файлов".PadRight(Console.WindowWidth / 2 - 2));
+
             Console.SetCursorPosition(1, --height);
             Console.Write($"'info ПУТЬ_К_ФАЙЛУ' - информация о файле");
+
             Console.CursorLeft = Console.WindowWidth / 2;
             Console.Write($"'copy КОПИРУЕМАЯ_ДИРЕКТОРИЯ КОНЕЧНАЯ_ДИРЕКТОРИЯ' - копирование".PadRight(Console.WindowWidth / 2 - 2));
             SetCommandLine();
         } 
 
-        static List<string> ParseString(string userCommand)  //разделение строки на подстроки-команды
+
+        //разделение строки на подстроки-команды
+        static List<string> ParseString(string userCommand)
         {
             var commands = new List<string>();
             string tempString = null;
+
             if (userCommand != null)
             {
-                for (int i = 0; i < userCommand.Length; i++) //проходим по строке от [0] индекса до первого пробела..
+                //проходим по строке от [0] индекса до первого пробела..
+                for (int i = 0; i < userCommand.Length; i++) 
                 {
                     if (userCommand[i] == ' ')
                     {
+                        //.. и добавляем в Лист полученную строку-команду.
                         for (int t = 0; t < i; t++)
                         {
                             tempString = tempString + userCommand[t];
                         }
-                        commands.Add(tempString); //.. и добавляем в Лист полученную строку.
+                        commands.Add(tempString); 
+
                         tempString = null;
-                        i++; //пропускаем пробел.
+
+                        //пропускаем пробел.
+                        i++;
+
                         int tempIndex = i;
+
+                        //если команда COPY, то разбираем строку на составляющие
                         if (commands[0] == "copy")
                         {
-                            for (int k = i + 2; k < userCommand.Length; k++) //пропускаем первое двоеточие
+                            //пропускаем первое двоеточие начиная с [i + 2] элемента
+                            for (int k = i + 2; k < userCommand.Length; k++) 
                             {
                                 if (userCommand[k] == ':')
                                 {
+                                    //.. добавляем в Лист первый полученный путь.
                                     for (int h = i; h < k - 2; h++)
                                     {
                                         tempString = tempString + userCommand[h];
                                     }
-                                    commands.Add(tempString); //.. добавляем в Лист полученный путь.
+                                    commands.Add(tempString);
                                     tempString = null;
+                                    //.. добавляем в Лист второй полученный путь.
                                     for (int l = k - 1; l < userCommand.Length; l++)
                                     {
                                         tempString = tempString + userCommand[l];
                                     }
-                                    commands.Add(tempString); //.. добавляем в Лист полученный путь.
+                                    commands.Add(tempString); 
                                 }
                             }
                             return commands;
                         }
 
+                        //если команда INFO или DEL, то разбираем строку на составляющие
                         if (commands[0] == "info" || commands[0] == "del")
                         {
                             for (int k = i; k < userCommand.Length; k++)
@@ -774,12 +819,15 @@ namespace ConsoleFileManager
                             }
                             commands.Add(tempString); //.. добавляем в Лист оставшийся путь.
                             return commands;
-                        }
+                        } 
 
+                        //если команда CD, то разбираем строку на составляющие
                         if (commands[0] == "cd")
                         {
                             for (int k = i; k < userCommand.Length; k++)
                             {
+                                // если находим в строке символ аргумента '-', то создаем строку-путь
+                                // из символов от i до символа аргумента
                                 if (userCommand[k] == '-')
                                 {
                                     for (int j = i; j < k - 1; j++)
@@ -787,15 +835,19 @@ namespace ConsoleFileManager
                                         tempString = tempString + userCommand[j];
                                     }
                                     commands.Add(tempString); //добавляем в лист путь
+
                                     tempString = null;
                                     tempString = tempString + userCommand[k];
-                                    tempString = tempString + userCommand[k + 1]; //добавляем аргумент -p
+                                    tempString = tempString + userCommand[k + 1]; //добавляем аргумент
                                     commands.Add(tempString);
+
                                     tempString = null;
                                     tempString = tempString + userCommand[k + 3]; //добавляем номер страницы
                                     commands.Add(tempString);
+
                                     return commands;
                                 }
+                                //если не находим аргумент, то добавляем оставшиеся символы в строку-путь
                                 if (k + 1 == userCommand.Length)
                                 {
                                     for (int j = i; j < userCommand.Length; j++)
@@ -807,15 +859,18 @@ namespace ConsoleFileManager
                                 }
                             }
                         }
+                        // для остальных команд строку не надо разбирать на составляющие
 
                         for (int j = i; j < userCommand.Length; j++)  //продолжаем идти по строке начиная с i-го индекса,
                         {
-                            if (userCommand[j] == ' ') //если после пути есть пробел, то добавляем путь в Лист и продолжаем идти по строке
+                            //если после пути есть пробел, то добавляем путь в Лист и продолжаем идти по строке
+                            if (userCommand[j] == ' ')
                             {
                                 commands.Add(userCommand.Substring(tempIndex, j - tempIndex));
                                 tempIndex = ++j; //пропускаем пробел
                             }
-                            if (j + 1 == userCommand.Length) //если строка закончится на следующей итерации цикла, то добавляем полученный путь в Лист
+                            //если строка закончится на следующей итерации цикла, то добавляем полученный путь в Лист
+                            if (j + 1 == userCommand.Length)
                             {
                                 commands.Add(userCommand.Substring(tempIndex, (j + 1) - tempIndex));
                                 break;
@@ -830,13 +885,10 @@ namespace ConsoleFileManager
                 }
 
             }
-            else
-            {
-                commands = null;
-                return commands;
-            }
+
             return commands;
         }
 
     }
 }
+
