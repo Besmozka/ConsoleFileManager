@@ -33,33 +33,64 @@ namespace ConsoleFileManager
     }
     class Program
     {
+        private static string errorsLogFile = "Errors.json";
+
+
         static void Main(string[] args)
-        {
+        {            
             var settings = new Settings();
 
-            CheckSettingsFile(settings.settingsFile, ref settings);
 
+            if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), errorsLogFile)))
+            {
+                File.Create(Path.Combine(Directory.GetCurrentDirectory(), errorsLogFile));
+            }
+
+            CheckSettingsFile(ref settings);
+
+            List<string> previousCommands = new List<string>();
             List<string> userCommands;
             var currentDirectory = settings.lastPath;
             int pageNumber = settings.pageNumber;
             string pathFrom;
-            string pathTo;
+            string pathTo;            
 
             DrawWindows(settings);
-            Directories(currentDirectory, pageNumber, settings);
-            Files(currentDirectory, pageNumber, settings);
-            DirectoryInfo(currentDirectory);
+            GetAttachedDirectories(currentDirectory, pageNumber, settings);
+            GetAttachedFiles(currentDirectory, pageNumber, settings);
+            GetDirectoryInfo(currentDirectory);
 
             while (true)
             {
-                SetCommandLine();
-                var userString = Console.ReadLine();
+                StandAtCommandLine();
+
+                string userString = null;
+                ConsoleKeyInfo keyInfo = Console.ReadKey();
+                var previousCommandsCount = previousCommands.Count;
+
+                if (keyInfo.Key == ConsoleKey.UpArrow)
+                {
+                    Console.Write(previousCommands[0]);
+                    userString = previousCommands[0];
+                }
+                else if (keyInfo.Key == ConsoleKey.DownArrow)
+                {
+                    Console.Write(previousCommands[previousCommandsCount - 1]);
+                    userString = previousCommands[previousCommandsCount - 1];
+                }
+                else
+                {
+                    userString = Console.ReadLine();
+                    _ = keyInfo.KeyChar + userString;
+                }
+               
+                previousCommands.Add(userString);
                 userCommands = ParseString(userString);
 
                 if (userCommands.Count <= 1)
                 {
-                    SetCommandLine();
-                    Help(settings);
+                    StandAtCommandLine();
+                    PrintHelp(settings);
                     Console.Write("Неправильная команда. Набор команд в окне информации. 'exit' -  для выхода (Нажмите любую клавишу)");
                     Console.ReadKey();
                     continue;
@@ -80,7 +111,7 @@ namespace ConsoleFileManager
                             }
                             else
                             {
-                                SetCommandLine();
+                                StandAtCommandLine();
                                 Console.Write($"{pathTo} уже существует (Нажмите любую клавишу)");
                                 Console.ReadKey();
                                 break;
@@ -95,7 +126,7 @@ namespace ConsoleFileManager
                             }
                             else
                             {
-                                SetCommandLine();
+                                StandAtCommandLine();
                                 Console.Write($"{pathTo} уже существует (Нажмите любую клавишу)");
                                 Console.ReadKey();
                                 break;
@@ -103,12 +134,12 @@ namespace ConsoleFileManager
                         }
                         else
                         {
-                            SetCommandLine();
+                            StandAtCommandLine();
                             Console.Write($"{pathFrom} не существует (Нажмите любую клавишу)");
                             Console.ReadKey();
                         }
-                        Directories(currentDirectory, pageNumber, settings);
-                        Files(currentDirectory, pageNumber, settings);
+                        GetAttachedDirectories(currentDirectory, pageNumber, settings);
+                        GetAttachedFiles(currentDirectory, pageNumber, settings);
                         break;
 
                     case "del":
@@ -123,12 +154,12 @@ namespace ConsoleFileManager
                         }
                         else
                         {
-                            SetCommandLine();
+                            StandAtCommandLine();
                             Console.Write($"{pathFrom} не существует (Нажмите любую клавишу)");
                             Console.ReadKey();
                         }
-                        Directories(currentDirectory, pageNumber, settings);
-                        Files(currentDirectory, pageNumber, settings);
+                        GetAttachedDirectories(currentDirectory, pageNumber, settings);
+                        GetAttachedFiles(currentDirectory, pageNumber, settings);
                         break;
 
                     case "cd":
@@ -143,31 +174,44 @@ namespace ConsoleFileManager
                                     {
                                         pageNumber = Convert.ToInt32(userCommands[3]);
                                     }
-                                    catch (Exception)
+                                    catch (Exception e)
                                     {
-                                        SetCommandLine();
+                                        StandAtCommandLine();
                                         Console.Write("Неверный формат номера страницы");
+                                        string rootPath = Directory.GetCurrentDirectory();
+                                        if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                                        {
+                                            var jsonString = JsonSerializer.Serialize(e);
+                                            try
+                                            {
+                                                File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                                            }
+                                            catch
+                                            {
+                                                Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                                            }
+                                        }
                                         Console.ReadKey();
                                         break;
                                     }
                                     currentDirectory = newDirectory;
-                                    Directories(currentDirectory, pageNumber, settings);
-                                    Files(currentDirectory, pageNumber, settings);
-                                    DirectoryInfo(currentDirectory);
+                                    GetAttachedDirectories(currentDirectory, pageNumber, settings);
+                                    GetAttachedFiles(currentDirectory, pageNumber, settings);
+                                    GetDirectoryInfo(currentDirectory);
                                     break;
                                 }
                                 else
                                 {
-                                    SetCommandLine();
+                                    StandAtCommandLine();
                                     Console.Write("Для команды 'cd' можно использовать только -р аттрибут");
                                     Console.ReadKey();
                                     break;
                                 }
                             }
                             currentDirectory = newDirectory;
-                            Directories(currentDirectory, pageNumber, settings);
-                            Files(currentDirectory, pageNumber, settings);
-                            DirectoryInfo(currentDirectory);
+                            GetAttachedDirectories(currentDirectory, pageNumber, settings);
+                            GetAttachedFiles(currentDirectory, pageNumber, settings);
+                            GetDirectoryInfo(currentDirectory);
                         }
                         else if (Directory.Exists(Path.Combine(currentDirectory,newDirectory)))
                         {
@@ -179,35 +223,48 @@ namespace ConsoleFileManager
                                     {
                                         pageNumber = Convert.ToInt32(userCommands[3]);
                                     }
-                                    catch (Exception)
+                                    catch (Exception e)
                                     {
-                                        SetCommandLine();
+                                        StandAtCommandLine();
                                         Console.Write("Неверный формат номера страницы");
+                                        string rootPath = Directory.GetCurrentDirectory();
+                                        if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                                        {
+                                            var jsonString = JsonSerializer.Serialize(e);
+                                            try
+                                            {
+                                                File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                                            }
+                                            catch
+                                            {
+                                                Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                                            }
+                                        }
                                         Console.ReadKey();
                                         break;
                                     }
                                     currentDirectory = Path.Combine(currentDirectory, newDirectory);
-                                    Directories(currentDirectory, pageNumber, settings);
-                                    Files(currentDirectory, pageNumber, settings);
-                                    DirectoryInfo(currentDirectory);
+                                    GetAttachedDirectories(currentDirectory, pageNumber, settings);
+                                    GetAttachedFiles(currentDirectory, pageNumber, settings);
+                                    GetDirectoryInfo(currentDirectory);
                                     break;
                                 }
                                 else
                                 {
-                                    SetCommandLine();
+                                    StandAtCommandLine();
                                     Console.Write("Для команды 'cd' можно использовать только -р аттрибут");
                                     Console.ReadKey();
                                     break;
                                 }
                             }
                             currentDirectory = Path.Combine(currentDirectory, newDirectory);
-                            Directories(currentDirectory, pageNumber, settings);
-                            Files(currentDirectory, pageNumber, settings);
-                            DirectoryInfo(currentDirectory);
+                            GetAttachedDirectories(currentDirectory, pageNumber, settings);
+                            GetAttachedFiles(currentDirectory, pageNumber, settings);
+                            GetDirectoryInfo(currentDirectory);
                         }
                         else 
                         { 
-                            SetCommandLine();
+                            StandAtCommandLine();
                             Console.Write($"{newDirectory} не существует, попробуйте снова (Нажмите любую клавишу)");
                             Console.ReadKey();
                         }
@@ -220,20 +277,33 @@ namespace ConsoleFileManager
                             {
                                 pageNumber = Convert.ToInt32(userCommands[2]);
                             }
-                            catch (Exception)
+                            catch (Exception e)
                             {
-                                SetCommandLine();
+                                StandAtCommandLine();
                                 Console.Write("Неверный формат номера страницы (Нажмите любую клавишу)");
+                                string rootPath = Directory.GetCurrentDirectory();
+                                if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                                {
+                                    var jsonString = JsonSerializer.Serialize(e);
+                                    try
+                                    {
+                                        File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                                    }
+                                    catch
+                                    {
+                                        Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                                    }
+                                }
                                 Console.ReadKey();
                                 break;
                             }
                             if (userCommands[1] == "-f")
                             {                                
-                                Files(currentDirectory, pageNumber, settings);
+                                GetAttachedFiles(currentDirectory, pageNumber, settings);
                             }
                             else if (userCommands[1] == "-d")
                             {
-                                Directories(currentDirectory, pageNumber, settings);
+                                GetAttachedDirectories(currentDirectory, pageNumber, settings);
                             }
                         }
                         else
@@ -242,15 +312,28 @@ namespace ConsoleFileManager
                             {
                                 pageNumber = Convert.ToInt32(userCommands[1]);
                             }
-                            catch (Exception)
+                            catch (Exception e)
                             {
-                                SetCommandLine();
+                                StandAtCommandLine();
                                 Console.Write("Неверный формат номера страницы (Нажмите любую клавишу)");
+                                string rootPath = Directory.GetCurrentDirectory();
+                                if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                                {
+                                    var jsonString = JsonSerializer.Serialize(e);
+                                    try
+                                    {
+                                        File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                                    }
+                                    catch
+                                    {
+                                        Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                                    }
+                                }
                                 Console.ReadKey();
                                 break;
                             }
-                            Directories(currentDirectory, pageNumber, settings);
-                            Files(currentDirectory, pageNumber, settings);
+                            GetAttachedDirectories(currentDirectory, pageNumber, settings);
+                            GetAttachedFiles(currentDirectory, pageNumber, settings);
                         }
                         break;
 
@@ -258,11 +341,11 @@ namespace ConsoleFileManager
                         pathFrom = userCommands[1];
                         if (File.Exists(pathFrom))
                         {
-                            FileInfo(pathFrom);
+                            GetFileInfo(pathFrom);
                         }
                         else
                         {
-                            SetCommandLine();
+                            StandAtCommandLine();
                             Console.Write($"{pathFrom} не существует, попробуйте снова (Нажмите любую клавишу)");
                             Console.ReadKey();
                         }
@@ -275,18 +358,21 @@ namespace ConsoleFileManager
                         Console.Write($"Size of {path.ToUpper()}: {GetSize(path)} bytes".PadRight(Console.WindowWidth / 2 - 2));
                         break;
                 }
+
                 if (userCommands[0] == "exit")
                 {
                     settings.lastPath = currentDirectory;
-                    SaveSettingsFile(settings.settingsFile, settings);
+                    SaveSettingsFile(settings);
                     break;
                 }
+
+
             }
         }
 
 
         //выставляем курсор в командную строку
-        static void SetCommandLine()
+        static void StandAtCommandLine()
         {
             var settings = new Settings();
             Console.SetCursorPosition(1, Console.WindowHeight - settings.commandLineHeight);
@@ -297,46 +383,69 @@ namespace ConsoleFileManager
 
 
         //проверяем наличие файла настроек. При его наличии считываем настройки, иначе используем стандартные
-        static void CheckSettingsFile(string settingsFile, ref Settings settings)
+        static void CheckSettingsFile(ref Settings settings)
         {
             Console.Title = "Console File Manager";
             string path = Directory.GetCurrentDirectory();
-            if (File.Exists(Path.Combine(path, settingsFile)))
+            if (File.Exists(Path.Combine(path, settings.settingsFile)))
             {
                 try
                 {
-                    string jsonSettings = File.ReadAllText(Path.Combine(path, settingsFile));
+                    string jsonSettings = File.ReadAllText(Path.Combine(path, settings.settingsFile));
                     settings = JsonSerializer.Deserialize<Settings>(jsonSettings);
                     string[] directories = Directory.GetDirectories(settings.lastPath);
                     Console.SetWindowSize(settings.windowWidth, settings.windowHeight);
                     Console.SetBufferSize(settings.bufferWidth, settings.bufferHeight);
+                    return;
                 }
-                catch
+                catch (Exception e)
                 {
-                    Console.Write("Ошибка при чтении настроек! Настройки сброшены");
-                    settings = new Settings();
+                    StandAtCommandLine();
+                    Console.Write($"Ошибка при чтении настроек! Подробно в файле {errorsLogFile}. Настройки сброшены");
+                    if (File.Exists(Path.Combine(path, errorsLogFile)))
+                    {
+                        var jsonString = JsonSerializer.Serialize(e);
+                        try
+                        {
+                            File.WriteAllText(Path.Combine(path, errorsLogFile), jsonString);
+                        }
+                        catch 
+                        {
+                            Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                        }
+                    }
+                    Console.ReadKey();
                 }
             }
-            else
-            {
-                settings = new Settings();
-            }
+            settings = new Settings();
         }
 
 
         //сохраняем настройки в JSON файле 
-        static void SaveSettingsFile(string settingsFile, Settings settings)
+        static void SaveSettingsFile(Settings settings)
         {
             string path = Directory.GetCurrentDirectory();
             string jsonSettings = JsonSerializer.Serialize(settings);
             try
             {
-                File.WriteAllText(Path.Combine(path, settingsFile), jsonSettings);
+                File.WriteAllText(Path.Combine(path, settings.settingsFile), jsonSettings);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                SetCommandLine();
+                StandAtCommandLine();
                 Console.Write("Ошибка при записи файла настроек!");
+                if (File.Exists(Path.Combine(path, errorsLogFile)))
+                {
+                    var jsonString = JsonSerializer.Serialize(e);
+                    try
+                    {
+                        File.WriteAllText(Path.Combine(path, errorsLogFile), jsonString);
+                    }
+                    catch
+                    {
+                        Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                    }
+                }
                 Console.ReadKey();
             }
         }
@@ -452,7 +561,7 @@ namespace ConsoleFileManager
 
 
         //вывод информации о файле
-        static void FileInfo(string path)
+        static void GetFileInfo(string path)
         {
             var settings = new Settings();
             FileInfo fileInfo = new FileInfo(path);
@@ -468,12 +577,12 @@ namespace ConsoleFileManager
             Console.SetCursorPosition(Console.WindowWidth / 2 + 1, cursorTop + 2);
             Console.Write($"Creation: {fileInfo.CreationTime} / ");
             Console.Write($"Attributes: {fileInfo.Attributes}".PadRight(Console.WindowWidth / 2 - 3));
-            SetCommandLine();
+            StandAtCommandLine();
         }
 
 
         //вывод информации о каталоге
-        static void DirectoryInfo(string path)
+        static void GetDirectoryInfo(string path)
         {
             DirectoryInfo directoryInfo = new DirectoryInfo(path);
             var directories = Directory.GetDirectories(path);
@@ -490,7 +599,7 @@ namespace ConsoleFileManager
 
             Console.SetCursorPosition(1, cursorTop + 2);
             Console.Write($"Contents: {directories.Length} Folders and {files.Length} Files".PadRight(Console.WindowWidth / 2 - 2));
-            SetCommandLine();
+            StandAtCommandLine();
         }
 
 
@@ -504,12 +613,27 @@ namespace ConsoleFileManager
                 {
                     subDirectories = Directory.GetDirectories(path);
                 }
-                catch
+                catch (Exception e)
                 {
+                    string rootPath = Directory.GetCurrentDirectory();
+                    if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                    {
+                        var jsonString = JsonSerializer.Serialize(e);
+                        try
+                        {
+                            File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                        }
+                        catch
+                        {
+                            Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                        }
+                    }
                     return 0;
                 }
+
                 var subFiles = Directory.GetFiles(path);
                 long size = 0;
+
                 if (subDirectories.Length != 0)
                 {
                     foreach (var file in subFiles)
@@ -546,7 +670,7 @@ namespace ConsoleFileManager
 
 
         //вывод файлов
-        static void Files(string path, int pageNumber, Settings settings)  
+        static void GetAttachedFiles(string path, int pageNumber, Settings settings)  
         {
             Console.SetCursorPosition(Console.WindowWidth / 2 + 1, 1); 
             Console.Write(path.ToUpper().PadRight(Console.WindowWidth / 2 - 3));
@@ -555,7 +679,7 @@ namespace ConsoleFileManager
             var pages = GetPagesNumber(settings.pageLines, files.Length);
             if (pageNumber <= 0 || pageNumber > pages)
             {
-                SetCommandLine();
+                StandAtCommandLine();
                 return;
             }
 
@@ -584,12 +708,12 @@ namespace ConsoleFileManager
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(Console.WindowWidth / 4 * 3, Console.WindowHeight - 8);
             Console.Write($"Page {pageNumber} of {pages}");
-            SetCommandLine();
+            StandAtCommandLine();
         }
 
 
         //вывод каталогов
-        static void Directories(string path, int pageNumber, Settings settings) 
+        static void GetAttachedDirectories(string path, int pageNumber, Settings settings) 
         {
             Console.SetCursorPosition(1, 1);
             Console.Write(path.ToUpper().PadRight(Console.WindowWidth / 2 - 2));
@@ -598,7 +722,7 @@ namespace ConsoleFileManager
             var pages = GetPagesNumber(settings.pageLines, directories.Length);
             if (pageNumber <= 0 || pageNumber > pages)
             {
-                SetCommandLine();
+                StandAtCommandLine();
                 return;
             }
 
@@ -629,7 +753,7 @@ namespace ConsoleFileManager
             Console.ForegroundColor = ConsoleColor.White;
             Console.SetCursorPosition(Console.WindowWidth / 4, Console.WindowHeight - 8);
             Console.Write($"Page {pageNumber} of {pages}");
-            SetCommandLine();
+            StandAtCommandLine();
         }
 
 
@@ -639,13 +763,26 @@ namespace ConsoleFileManager
             try
             {
                 Directory.Delete(path, true);
-                SetCommandLine();
+                StandAtCommandLine();
                 Console.Write("Удаление успешно");
             }
             catch (Exception e)
             {
-                SetCommandLine();
-                Console.Write($"Ошибка при удалении каталога: {path} {e.Message}");
+                StandAtCommandLine();
+                Console.Write($"Ошибка при удалении каталога: {path}");
+                string rootPath = Directory.GetCurrentDirectory();
+                if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                {
+                    var jsonString = JsonSerializer.Serialize(e);
+                    try
+                    {
+                        File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                    }
+                    catch
+                    {
+                        Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                    }
+                }
                 Console.ReadKey();
             }
         }
@@ -661,8 +798,21 @@ namespace ConsoleFileManager
             }
             catch (Exception e)
             {
-                SetCommandLine();
-                Console.Write($"Ошибка при удалении файла: {path} {e.Message}");
+                StandAtCommandLine();
+                Console.Write($"Ошибка при удалении файла: {path}");
+                string rootPath = Directory.GetCurrentDirectory();
+                if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                {
+                    var jsonString = JsonSerializer.Serialize(e);
+                    try
+                    {
+                        File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                    }
+                    catch
+                    {
+                        Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                    }
+                }
                 Console.ReadKey();
             }
         }
@@ -682,10 +832,23 @@ namespace ConsoleFileManager
                 {
                     file.CopyTo(tempPath, false);
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    SetCommandLine();
+                    StandAtCommandLine();
                     Console.Write($"Ошибка при копировании файла {file.Name} (Нажмите любую клавишу)");
+                    string rootPath = Directory.GetCurrentDirectory();
+                    if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                    {
+                        var jsonString = JsonSerializer.Serialize(e);
+                        try
+                        {
+                            File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                        }
+                        catch
+                        {
+                            Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                        }
+                    }
                     Console.ReadKey();
                 }
             }
@@ -699,7 +862,7 @@ namespace ConsoleFileManager
                 }
                 catch (Exception)
                 {
-                    SetCommandLine();
+                    StandAtCommandLine();
                     Console.Write($"Ошибка при копировании директории {subdir.FullName} (Нажмите любую клавишу)");
                     Console.ReadKey();
                 }
@@ -713,20 +876,33 @@ namespace ConsoleFileManager
             try
             {
                 File.Copy(pathFrom, pathTo);
-                SetCommandLine();
+                StandAtCommandLine();
                 Console.Write("Копирование успешно");
             }
             catch (Exception e)
             {
-                SetCommandLine();
+                StandAtCommandLine();
                 Console.Write($"При копировании произошла ошибка");
+                string rootPath = Directory.GetCurrentDirectory();
+                if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                {
+                    var jsonString = JsonSerializer.Serialize(e);
+                    try
+                    {
+                        File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                    }
+                    catch
+                    {
+                        Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                    }
+                }
                 Console.ReadKey();
             }
         }
 
 
         //вывод помощи
-        static void Help(Settings settings)
+        static void PrintHelp(Settings settings)
         {
             var height = Console.WindowHeight - settings.infoWindowHeight + 1;
 
@@ -753,7 +929,7 @@ namespace ConsoleFileManager
 
             Console.CursorLeft = Console.WindowWidth / 2;
             Console.Write($"'copy КОПИРУЕМАЯ_ДИРЕКТОРИЯ КОНЕЧНАЯ_ДИРЕКТОРИЯ' - копирование".PadRight(Console.WindowWidth / 2 - 2));
-            SetCommandLine();
+            StandAtCommandLine();
         } 
 
 
@@ -883,12 +1059,9 @@ namespace ConsoleFileManager
                         commands.Add(userCommand);
                     }
                 }
-
             }
-
             return commands;
         }
-
     }
 }
 
