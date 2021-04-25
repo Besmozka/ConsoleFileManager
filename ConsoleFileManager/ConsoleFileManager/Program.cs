@@ -19,16 +19,16 @@ namespace ConsoleFileManager
         public string lastPath { get; set; }
         public Settings()
         {
-            bufferHeight = 250;
-            bufferWidth = 160;
             infoWindowHeight = 5;
             commandLineHeight = 2;
             lastPath = "C:\\";
             settingsFile = "Settings.json";
             pageNumber = 1;
-            pageLines = 35;
+            pageLines = 45;
             windowHeight = pageLines + infoWindowHeight + commandLineHeight + 1;
-            windowWidth = 160;
+            windowWidth = 200;
+            bufferHeight = windowHeight;
+            bufferWidth = 200;
         }
     }
     class Program
@@ -48,7 +48,6 @@ namespace ConsoleFileManager
 
             CheckSettingsFile(ref settings);
 
-            List<string> previousCommands = new List<string>();
             List<string> userCommands;
             var currentDirectory = settings.lastPath;
             int pageNumber = settings.pageNumber;
@@ -63,31 +62,9 @@ namespace ConsoleFileManager
             while (true)
             {
                 StandAtCommandLine();
+                userCommands = ParseString(Console.ReadLine());
 
-                string userString = null;
-                ConsoleKeyInfo keyInfo = Console.ReadKey();
-                var previousCommandsCount = previousCommands.Count;
-
-                if (keyInfo.Key == ConsoleKey.UpArrow)
-                {
-                    Console.Write(previousCommands[0]);
-                    userString = previousCommands[0];
-                }
-                else if (keyInfo.Key == ConsoleKey.DownArrow)
-                {
-                    Console.Write(previousCommands[previousCommandsCount - 1]);
-                    userString = previousCommands[previousCommandsCount - 1];
-                }
-                else
-                {
-                    userString = Console.ReadLine();
-                    _ = keyInfo.KeyChar + userString;
-                }
-               
-                previousCommands.Add(userString);
-                userCommands = ParseString(userString);
-
-                if (userCommands.Count <= 1)
+                if (userCommands.Count <= 1 && userCommands[0] != "exit")
                 {
                     StandAtCommandLine();
                     PrintHelp(settings);
@@ -181,7 +158,7 @@ namespace ConsoleFileManager
                                         string rootPath = Directory.GetCurrentDirectory();
                                         if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                                         {
-                                            var jsonString = JsonSerializer.Serialize(e);
+                                            var jsonString = JsonSerializer.Serialize(e.Message);
                                             try
                                             {
                                                 File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
@@ -230,7 +207,7 @@ namespace ConsoleFileManager
                                         string rootPath = Directory.GetCurrentDirectory();
                                         if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                                         {
-                                            var jsonString = JsonSerializer.Serialize(e);
+                                            var jsonString = JsonSerializer.Serialize(e.Message);
                                             try
                                             {
                                                 File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
@@ -284,7 +261,7 @@ namespace ConsoleFileManager
                                 string rootPath = Directory.GetCurrentDirectory();
                                 if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                                 {
-                                    var jsonString = JsonSerializer.Serialize(e);
+                                    var jsonString = JsonSerializer.Serialize(e.Message);
                                     try
                                     {
                                         File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
@@ -319,7 +296,7 @@ namespace ConsoleFileManager
                                 string rootPath = Directory.GetCurrentDirectory();
                                 if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                                 {
-                                    var jsonString = JsonSerializer.Serialize(e);
+                                    var jsonString = JsonSerializer.Serialize(e.Message);
                                     try
                                     {
                                         File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
@@ -404,7 +381,7 @@ namespace ConsoleFileManager
                     Console.Write($"Ошибка при чтении настроек! Подробно в файле {errorsLogFile}. Настройки сброшены");
                     if (File.Exists(Path.Combine(path, errorsLogFile)))
                     {
-                        var jsonString = JsonSerializer.Serialize(e);
+                        var jsonString = JsonSerializer.Serialize(e.Message);
                         try
                         {
                             File.WriteAllText(Path.Combine(path, errorsLogFile), jsonString);
@@ -436,7 +413,7 @@ namespace ConsoleFileManager
                 Console.Write("Ошибка при записи файла настроек!");
                 if (File.Exists(Path.Combine(path, errorsLogFile)))
                 {
-                    var jsonString = JsonSerializer.Serialize(e);
+                    var jsonString = JsonSerializer.Serialize(e.Message);
                     try
                     {
                         File.WriteAllText(Path.Combine(path, errorsLogFile), jsonString);
@@ -618,7 +595,7 @@ namespace ConsoleFileManager
                     string rootPath = Directory.GetCurrentDirectory();
                     if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                     {
-                        var jsonString = JsonSerializer.Serialize(e);
+                        var jsonString = JsonSerializer.Serialize(e.Message);
                         try
                         {
                             File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
@@ -773,7 +750,7 @@ namespace ConsoleFileManager
                 string rootPath = Directory.GetCurrentDirectory();
                 if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                 {
-                    var jsonString = JsonSerializer.Serialize(e);
+                    var jsonString = JsonSerializer.Serialize(e.Message);
                     try
                     {
                         File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
@@ -803,7 +780,7 @@ namespace ConsoleFileManager
                 string rootPath = Directory.GetCurrentDirectory();
                 if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                 {
-                    var jsonString = JsonSerializer.Serialize(e);
+                    var jsonString = JsonSerializer.Serialize(e.Message);
                     try
                     {
                         File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
@@ -839,7 +816,7 @@ namespace ConsoleFileManager
                     string rootPath = Directory.GetCurrentDirectory();
                     if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                     {
-                        var jsonString = JsonSerializer.Serialize(e);
+                        var jsonString = JsonSerializer.Serialize(e.Message);
                         try
                         {
                             File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
@@ -860,10 +837,23 @@ namespace ConsoleFileManager
                 {
                     CopyDirectory(subdir.FullName, tempPath);
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
                     StandAtCommandLine();
                     Console.Write($"Ошибка при копировании директории {subdir.FullName} (Нажмите любую клавишу)");
+                    string rootPath = Directory.GetCurrentDirectory();
+                    if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
+                    {
+                        var jsonString = JsonSerializer.Serialize(e.Message);
+                        try
+                        {
+                            File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
+                        }
+                        catch
+                        {
+                            Console.Write($"Ошибка записи в файл {errorsLogFile}");
+                        }
+                    }
                     Console.ReadKey();
                 }
             }
@@ -886,7 +876,7 @@ namespace ConsoleFileManager
                 string rootPath = Directory.GetCurrentDirectory();
                 if (File.Exists(Path.Combine(rootPath, errorsLogFile)))
                 {
-                    var jsonString = JsonSerializer.Serialize(e);
+                    var jsonString = JsonSerializer.Serialize(e.Message);
                     try
                     {
                         File.WriteAllText(Path.Combine(rootPath, errorsLogFile), jsonString);
